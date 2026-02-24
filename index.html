@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elder Futhark Rune Reader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e8e8e8;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 2px solid #4a5568;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #d4af37;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-style: italic;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #d4af37;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        select, input, button {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #e8e8e8;
+            font-size: 16px;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #d4af37;
+        }
+
+        button {
+            background: linear-gradient(135deg, #d4af37 0%, #aa8b2e 100%);
+            color: #1a1a2e;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            margin-top: 10px;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+        }
+
+        .runes-display {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid #d4af37;
+            border-radius: 8px;
+            padding: 40px;
+            margin-bottom: 30px;
+            min-height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .rune-spread {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .rune-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(212, 175, 55, 0.5);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            min-width: 120px;
+            transition: all 0.3s;
+        }
+
+        .rune-card:hover {
+            border-color: #d4af37;
+            transform: scale(1.05);
+        }
+
+        .rune-symbol {
+            font-size: 4em;
+            color: #d4af37;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .rune-symbol.reversed {
+            transform: rotate(180deg);
+            color: #8b7d3f;
+        }
+
+        .rune-name {
+            font-size: 1.1em;
+            color: #e8e8e8;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .rune-position {
+            font-size: 0.9em;
+            color: #a0a0a0;
+            font-style: italic;
+        }
+
+        .interpretation {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+
+        .interpretation h2 {
+            color: #d4af37;
+            margin-bottom: 15px;
+        }
+
+        .interpretation-text {
+            white-space: pre-wrap;
+        }
+
+        .loading {
+            text-align: center;
+            color: #d4af37;
+            font-style: italic;
+        }
+
+        .history {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 25px;
+        }
+
+        .history h2 {
+            color: #d4af37;
+            margin-bottom: 20px;
+        }
+
+        .history-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid #d4af37;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+
+        .history-date {
+            color: #a0a0a0;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .history-runes {
+            color: #d4af37;
+            font-size: 1.5em;
+            margin: 10px 0;
+        }
+
+        .history-spread {
+            color: #e8e8e8;
+            font-size: 0.9em;
+        }
+
+        .error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: #ff6b6b;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .api-key-notice {
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+
+        /* Spread-specific layouts */
+        .spread-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .spread-5 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 500px;
+        }
+
+        .spread-5 .rune-card:nth-child(1) {
+            grid-column: 2;
+        }
+
+        .spread-5 .rune-card:nth-child(2) {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .spread-5 .rune-card:nth-child(3) {
+            grid-column: 2;
+            grid-row: 2;
+        }
+
+        .spread-5 .rune-card:nth-child(4) {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .spread-5 .rune-card:nth-child(5) {
+            grid-column: 2;
+            grid-row: 3;
+        }
+
+        .spread-9 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 600px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ᚱᚢᚾᛖ ᚱᛖᚨᛞᛖᚱ</h1>
+            <p class="subtitle">Elder Futhark Divination</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="spread-type">Choose Your Spread</label>
+                <select id="spread-type">
+                    <option value="1">Single Rune - Daily Guidance</option>
+                    <option value="2">Two Rune - Daily Balance</option>
+                    <option value="3-ppp">Three Rune - Past/Present/Future</option>
+                    <option value="3-ooa">Three Rune - Overview/Obstacle/Action</option>
+                    <option value="5">Five Rune - Norse Cross</option>
+                    <option value="9">Nine Rune - World Tree (Yggdrasil)</option>
+                </select>
+            </div>
+
+            <div class="control-group checkbox-group">
+                <input type="checkbox" id="allow-reversed" checked>
+                <label for="allow-reversed" style="margin-bottom: 0;">Allow reversed runes (merkstave)</label>
+            </div>
+
+            <button id="draw-runes" onclick="drawRunes()">Cast the Runes</button>
+        </div>
+
+        <div id="error-display"></div>
+
+        <div class="runes-display" id="runes-display">
+            <p style="color: #a0a0a0; font-style: italic;">Cast the runes to begin your reading...</p>
+        </div>
+
+        <div class="interpretation" id="interpretation" style="display: none;">
+            <h2>Interpretation</h2>
+            <div id="interpretation-text"></div>
+        </div>
+
+        <div class="history" id="history-section" style="display: none;">
+            <h2>Recent Readings</h2>
+            <div id="history-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // Elder Futhark runes with their meanings
+        const RUNES = [
+            { name: "Fehu", symbol: "ᚠ", upright: "Wealth, abundance, prosperity, new beginnings", reversed: "Loss, greed, stagnation" },
+            { name: "Uruz", symbol: "ᚢ", upright: "Strength, vitality, primal power, health", reversed: "Weakness, missed opportunity, poor health" },
+            { name: "Thurisaz", symbol: "ᚦ", upright: "Protection, breaking barriers, catalyst for change", reversed: "Danger, conflict, betrayal" },
+            { name: "Ansuz", symbol: "ᚨ", upright: "Communication, wisdom, divine inspiration", reversed: "Miscommunication, deceit, lack of clarity" },
+            { name: "Raidho", symbol: "ᚱ", upright: "Journey, movement, quest, right action", reversed: "Delays, detours, stagnation" },
+            { name: "Kenaz", symbol: "ᚲ", upright: "Knowledge, creativity, transformation, illumination", reversed: "Darkness, ignorance, creative block" },
+            { name: "Gebo", symbol: "ᚷ", upright: "Gift, partnership, balance, generosity", reversed: "Imbalance, obligation, dependence" },
+            { name: "Wunjo", symbol: "ᚹ", upright: "Joy, harmony, success, fulfillment", reversed: "Sorrow, discord, alienation" },
+            { name: "Hagalaz", symbol: "ᚺ", upright: "Disruption, crisis, uncontrolled forces, awakening", reversed: "Natural disaster, catastrophe, severe disruption" },
+            { name: "Nauthiz", symbol: "ᚾ", upright: "Need, constraint, resistance, resilience", reversed: "Deprivation, lack, restriction" },
+            { name: "Isa", symbol: "ᛁ", upright: "Stillness, patience, ice, pause", reversed: "Thaw, movement, melting resistance" },
+            { name: "Jera", symbol: "ᛃ", upright: "Harvest, cycles, reward, natural timing", reversed: "Delay, setback, poor timing" },
+            { name: "Eihwaz", symbol: "ᛇ", upright: "Defense, protection, endurance, reliability", reversed: "Weakness, vulnerability, confusion" },
+            { name: "Perthro", symbol: "ᛈ", upright: "Mystery, fate, chance, hidden knowledge", reversed: "Revealed secrets, disappointment" },
+            { name: "Algiz", symbol: "ᛉ", upright: "Protection, connection to divine, sanctuary", reversed: "Vulnerability, hidden danger" },
+            { name: "Sowilo", symbol: "ᛊ", upright: "Success, vitality, wholeness, life force", reversed: "False goals, defeat, bad advice" },
+            { name: "Tiwaz", symbol: "ᛏ", upright: "Victory, honor, justice, leadership", reversed: "Defeat, failed justice, conflict" },
+            { name: "Berkano", symbol: "ᛒ", upright: "Growth, fertility, new beginnings, nurturing", reversed: "Stagnation, carelessness, anxiety" },
+            { name: "Ehwaz", symbol: "ᛖ", upright: "Movement, progress, partnership, trust", reversed: "Restlessness, betrayal, disharmony" },
+            { name: "Mannaz", symbol: "ᛗ", upright: "The Self, humanity, support, connection", reversed: "Isolation, delusion, manipulation" },
+            { name: "Laguz", symbol: "ᛚ", upright: "Flow, intuition, emotions, psychic abilities", reversed: "Confusion, fear, emotional turmoil" },
+            { name: "Ingwaz", symbol: "ᛜ", upright: "Completion, fertility, internal growth", reversed: "Incomplete work, blocked growth" },
+            { name: "Dagaz", symbol: "ᛞ", upright: "Breakthrough, transformation, dawn, clarity", reversed: "Completion, ending, clouded perception" },
+            { name: "Othala", symbol: "ᛟ", upright: "Heritage, inheritance, home, ancestral wisdom", reversed: "Lack of roots, prejudice, clinging to past" }
+        ];
+
+        // Spread definitions
+        const SPREADS = {
+            "1": {
+                name: "Single Rune",
+                positions: ["Daily Guidance"]
+            },
+            "2": {
+                name: "Two Rune Daily",
+                positions: ["Challenge", "Strength"]
+            },
+            "3-ppp": {
+                name: "Three Rune - Past/Present/Future",
+                positions: ["Past", "Present", "Future"]
+            },
+            "3-ooa": {
+                name: "Three Rune - Overview/Obstacle/Action",
+                positions: ["Overview", "Obstacle", "Action"]
+            },
+            "5": {
+                name: "Five Rune - Norse Cross",
+                positions: ["Present Situation", "Challenge", "Past Foundation", "Future Outcome", "Higher Power/Guidance"]
+            },
+            "9": {
+                name: "Nine Rune - World Tree",
+                positions: [
+                    "Roots (Past/Foundation)",
+                    "Trunk (Present/Self)",
+                    "Branches (Future/Aspirations)",
+                    "Hidden (Subconscious)",
+                    "Known (Conscious)",
+                    "Challenge (Obstacle)",
+                    "Strength (Resources)",
+                    "Lesson (Teaching)",
+                    "Outcome (Result)"
+                ]
+            }
+        };
+
+        let currentReading = null;
+
+        // Load history on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadHistory();
+        });
+
+        function drawRunes() {
+            const spreadType = document.getElementById('spread-type').value;
+            const allowReversed = document.getElementById('allow-reversed').checked;
+
+            // Clear previous error
+            document.getElementById('error-display').innerHTML = '';
+
+            // Get spread info
+            const spread = SPREADS[spreadType];
+            const numRunes = spread.positions.length;
+
+            // Draw random runes
+            const drawnRunes = [];
+            const usedIndices = new Set();
+
+            for (let i = 0; i < numRunes; i++) {
+                let runeIndex;
+                do {
+                    runeIndex = Math.floor(Math.random() * RUNES.length);
+                } while (usedIndices.has(runeIndex));
+
+                usedIndices.add(runeIndex);
+
+                const rune = { ...RUNES[runeIndex] };
+                rune.reversed = allowReversed && Math.random() < 0.3; // 30% chance of reversal
+                rune.position = spread.positions[i];
+
+                drawnRunes.push(rune);
+            }
+
+            currentReading = {
+                spread: spread.name,
+                runes: drawnRunes,
+                timestamp: new Date().toISOString()
+            };
+
+            // Display runes
+            displayRunes(drawnRunes, numRunes);
+
+            // Get interpretation
+            getInterpretation(spread, drawnRunes);
+        }
+
+        function displayRunes(runes, count) {
+            const display = document.getElementById('runes-display');
+            const spreadClass = count === 2 ? 'spread-2' :
+                               count === 5 ? 'spread-5' :
+                               count === 9 ? 'spread-9' :
+                               'rune-spread';
+
+            let html = `<div class="${spreadClass}">`;
+
+            runes.forEach(rune => {
+                html += `
+                    <div class="rune-card">
+                        <span class="rune-symbol ${rune.reversed ? 'reversed' : ''}">${rune.symbol}</span>
+                        <div class="rune-name">${rune.name}${rune.reversed ? ' (Reversed)' : ''}</div>
+                        <div class="rune-position">${rune.position}</div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            display.innerHTML = html;
+        }
+
+        async function getInterpretation(spread, runes) {
+            const interpretationDiv = document.getElementById('interpretation');
+            const interpretationText = document.getElementById('interpretation-text');
+
+            interpretationDiv.style.display = 'block';
+            interpretationText.innerHTML = '<p class="loading">Interpreting the runes...</p>';
+
+            // Prepare rune data for the server
+            const runeData = runes.map(rune => ({
+                name: rune.name,
+                position: rune.position,
+                reversed: rune.reversed,
+                upright_meaning: rune.upright,
+                reversed_meaning: rune.reversed
+            }));
+
+            try {
+                const response = await fetch('/api/interpret', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        spread: spread.name,
+                        runes: runeData
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Server request failed');
+                }
+
+                const data = await response.json();
+                const interpretation = data.interpretation;
+
+                interpretationText.innerHTML = `<div class="interpretation-text">${interpretation}</div>`;
+
+                // Save to history
+                currentReading.interpretation = interpretation;
+                saveToHistory(currentReading);
+
+            } catch (error) {
+                console.error('Error getting interpretation:', error);
+                document.getElementById('error-display').innerHTML =
+                    `<div class="error">Error getting interpretation: ${error.message}. Please try again.</div>`;
+                interpretationText.innerHTML =
+                    '<p style="color: #ff6b6b; font-style: italic;">Failed to get interpretation. Please try again.</p>';
+            }
+        }
+
+        function saveToHistory(reading) {
+            let history = JSON.parse(localStorage.getItem('rune_history') || '[]');
+            history.unshift(reading);
+            history = history.slice(0, 3); // Keep only last 3
+            localStorage.setItem('rune_history', JSON.stringify(history));
+            loadHistory();
+        }
+
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('rune_history') || '[]');
+            const historySection = document.getElementById('history-section');
+            const historyContent = document.getElementById('history-content');
+
+            if (history.length === 0) {
+                historySection.style.display = 'none';
+                return;
+            }
+
+            historySection.style.display = 'block';
+
+            let html = '';
+            history.forEach(reading => {
+                const date = new Date(reading.timestamp).toLocaleString();
+                const runeSymbols = reading.runes.map(r => r.reversed ? `${r.symbol}↓` : r.symbol).join(' ');
+
+                html += `
+                    <div class="history-item">
+                        <div class="history-date">${date}</div>
+                        <div class="history-spread">${reading.spread}</div>
+                        <div class="history-runes">${runeSymbols}</div>
+                    </div>
+                `;
+            });
+
+            historyContent.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
