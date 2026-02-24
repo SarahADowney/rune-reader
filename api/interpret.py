@@ -1,10 +1,68 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
+import time
 from anthropic import Anthropic
+
+# Simple in-memory rate limiter
+# Note: This resets on cold starts, but provides protection during active periods
+rate_limit_store = {}
+RATE_LIMIT = 5  # requests per hour
+RATE_WINDOW = 3600  # 1 hour in seconds
+
+def check_rate_limit(ip_address):
+    """Returns (allowed, remaining, reset_time)"""
+    current_time = time.time()
+
+    if ip_address not in rate_limit_store:
+        rate_limit_store[ip_address] = []
+
+    # Remove old requests outside the time window
+    rate_limit_store[ip_address] = [
+        req_time for req_time in rate_limit_store[ip_address]
+        if current_time - req_time < RATE_WINDOW
+    ]
+
+    # Check if under limit
+    request_count = len(rate_limit_store[ip_address])
+
+    if request_count >= RATE_LIMIT:
+        oldest_request = min(rate_limit_store[ip_address])
+        reset_time = oldest_request + RATE_WINDOW
+        return False, 0, reset_time
+
+    # Add current request
+    rate_limit_store[ip_address].append(current_time)
+    remaining = RATE_LIMIT - (request_count + 1)
+    reset_time = current_time + RATE_WINDOW
+
+    return True, remaining, reset_time
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
+        # Get client IP
+        ip_address = self.headers.get('x-forwarded-for', self.client_address[0])
+        if ',' in ip_address:
+            ip_address = ip_address.split(',')[0].strip()
+
+        # Check rate limit
+        allowed, remaining, reset_time = check_rate_limit(ip_address)
+
+        if not allowed:
+            self.send_response(429)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('X-RateLimit-Limit', str(RATE_LIMIT))
+            self.send_header('X-RateLimit-Remaining', '0')
+            self.send_header('X-RateLimit-Reset', str(int(reset_time)))
+            self.end_headers()
+
+            minutes_until_reset = int((reset_time - time.time()) / 60)
+            self.wfile.write(json.dumps({
+                "error": f"Rate limit exceeded. You can cast {RATE_LIMIT} runes per hour. Please try again in {minutes_until_reset} minutes."
+            }).encode())
+            return
+
         # Read request body
         content_length = int(self.headers['Content-Length'])
         body = self.rfile.read(content_length)
@@ -51,10 +109,13 @@ class handler(BaseHTTPRequestHandler):
 
             interpretation = response.content[0].text
 
-            # Send response
+            # Send response with rate limit headers
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('X-RateLimit-Limit', str(RATE_LIMIT))
+            self.send_header('X-RateLimit-Remaining', str(remaining))
+            self.send_header('X-RateLimit-Reset', str(int(reset_time)))
             self.end_headers()
             self.wfile.write(json.dumps({
                 "interpretation": interpretation

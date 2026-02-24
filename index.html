@@ -505,11 +505,13 @@
                     })
                 });
 
+                const data = await response.json();
+
                 if (!response.ok) {
-                    throw new Error('Server request failed');
+                    // Handle rate limiting or other errors
+                    throw new Error(data.error || 'Server request failed');
                 }
 
-                const data = await response.json();
                 const interpretation = data.interpretation;
 
                 interpretationText.innerHTML = `<div class="interpretation-text">${interpretation}</div>`;
